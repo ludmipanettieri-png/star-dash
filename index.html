@@ -111,13 +111,38 @@
       line-height: 1.1;
     }
 
+    .buttons {
+      display: grid;
+      gap: 8px;
+      margin-top: auto;
+    }
+
+    button {
+      height: 42px;
+      border: 2px solid var(--line);
+      border-radius: 8px;
+      background: var(--gold);
+      color: var(--ink);
+      font-weight: 900;
+      cursor: pointer;
+      box-shadow: 0 4px 0 var(--line);
+    }
+
+    button.secondary {
+      background: #ffffff;
+    }
+
+    button:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 var(--line);
+    }
+
     .hint {
       margin: 0;
       color: #536172;
       font-size: 13px;
       line-height: 1.35;
       font-weight: 700;
-      margin-top: auto;
     }
 
     .stage {
@@ -132,6 +157,7 @@
       width: 100%;
       height: 100%;
       background: #162231;
+      touch-action: none;
     }
 
     .overlay {
@@ -167,6 +193,83 @@
       line-height: 1.35;
     }
 
+    .touch {
+      display: none;
+      grid-template-columns: repeat(3, 54px);
+      justify-content: center;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .touch button {
+      width: 54px;
+      padding: 0;
+      font-size: 18px;
+      touch-action: none;
+    }
+
+    .touch .ghost {
+      visibility: hidden;
+    }
+
+    @media (max-width: 780px) {
+      body {
+        padding: 10px;
+      }
+
+      .shell {
+        height: calc(100dvh - 20px);
+        grid-template-columns: 1fr;
+        grid-template-rows: auto minmax(0, 1fr) auto;
+        gap: 10px;
+      }
+
+      .side {
+        padding: 10px;
+        box-shadow: 0 5px 0 var(--line);
+      }
+
+      .brand {
+        grid-template-columns: 1fr auto;
+        align-items: center;
+      }
+
+      .brand span {
+        text-align: right;
+      }
+
+      .meter-grid {
+        grid-template-columns: repeat(4, 1fr);
+      }
+
+      .meter {
+        padding: 6px;
+      }
+
+      .meter strong {
+        font-size: 17px;
+      }
+
+      .buttons {
+        grid-template-columns: 1fr 1fr;
+        margin-top: 0;
+      }
+
+      .hint {
+        display: none;
+      }
+
+      .touch {
+        display: grid;
+        margin-top: 0;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .meter-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
   </style>
 </head>
 <body>
@@ -196,7 +299,12 @@
         </div>
       </section>
 
-      <p class="hint">Enter para jugar. Flechas o WASD para moverte. Espacio pausa. El diamante verde te da escudo.</p>
+      <p class="hint">Flechas o WASD para moverte. Espacio pausa. Recoge estrellas, el diamante verde te da escudo.</p>
+
+      <div class="buttons">
+        <button id="startButton">Jugar</button>
+        <button class="secondary" id="pauseButton">Pausa</button>
+      </div>
     </aside>
 
     <section class="stage">
@@ -204,9 +312,19 @@
       <div class="overlay" id="overlay">
         <div class="overlay-box">
           <h2 id="overlayTitle">Star Dash</h2>
-          <p id="overlayText">Pulsa Enter para empezar. Recoge estrellas, esquiva drones y encadena puntos para subir de nivel.</p>
+          <p id="overlayText">Un mini arcade: recoge estrellas, esquiva drones y encadena puntos para subir de nivel.</p>
+          <button id="overlayButton">Empezar partida</button>
         </div>
       </div>
+    </section>
+
+    <section class="touch" aria-label="Controles tactiles">
+      <span class="ghost"></span>
+      <button data-dir="up" aria-label="Arriba">^</button>
+      <span class="ghost"></span>
+      <button data-dir="left" aria-label="Izquierda">&lt;</button>
+      <button data-dir="down" aria-label="Abajo">v</button>
+      <button data-dir="right" aria-label="Derecha">&gt;</button>
     </section>
   </main>
 
@@ -217,9 +335,12 @@
     const bestEl = document.querySelector("#best");
     const livesEl = document.querySelector("#lives");
     const levelEl = document.querySelector("#level");
+    const startButton = document.querySelector("#startButton");
+    const pauseButton = document.querySelector("#pauseButton");
     const overlay = document.querySelector("#overlay");
     const overlayTitle = document.querySelector("#overlayTitle");
     const overlayText = document.querySelector("#overlayText");
+    const overlayButton = document.querySelector("#overlayButton");
 
     const state = {
       playing: false,
@@ -271,9 +392,10 @@
       levelEl.textContent = state.level;
     }
 
-    function setOverlay(title, text) {
+    function setOverlay(title, text, buttonText) {
       overlayTitle.textContent = title;
       overlayText.textContent = text;
+      overlayButton.textContent = buttonText;
       overlay.classList.remove("hidden");
     }
 
@@ -366,6 +488,8 @@
       moveStar();
       makeEnemies();
       hideOverlay();
+      startButton.textContent = "Reiniciar";
+      pauseButton.textContent = "Pausa";
       updateHud();
     }
 
@@ -375,14 +499,15 @@
       state.best = Math.max(state.best, state.score);
       localStorage.setItem("starDashBest", String(state.best));
       updateHud();
-      setOverlay("Fin", `Puntuacion final: ${state.score}. Record: ${state.best}. Pulsa Enter para otra partida.`);
+      setOverlay("Fin", `Puntuacion final: ${state.score}. Record: ${state.best}.`, "Otra partida");
     }
 
     function togglePause() {
       if (!state.playing) return;
       state.paused = !state.paused;
+      pauseButton.textContent = state.paused ? "Seguir" : "Pausa";
       if (state.paused) {
-        setOverlay("Pausa", "Respira. Pulsa espacio para continuar.");
+        setOverlay("Pausa", "Respira. Pulsa Seguir o espacio para continuar.", "Seguir");
       } else {
         hideOverlay();
       }
@@ -658,6 +783,28 @@
 
     document.addEventListener("keyup", (event) => {
       keys.delete(event.key.toLowerCase());
+    });
+
+    const touchMap = { up: "arrowup", down: "arrowdown", left: "arrowleft", right: "arrowright" };
+    document.querySelectorAll("[data-dir]").forEach((button) => {
+      const key = touchMap[button.dataset.dir];
+      button.addEventListener("pointerdown", (event) => {
+        event.preventDefault();
+        keys.add(key);
+      });
+      button.addEventListener("pointerup", () => keys.delete(key));
+      button.addEventListener("pointercancel", () => keys.delete(key));
+      button.addEventListener("pointerleave", () => keys.delete(key));
+    });
+
+    startButton.addEventListener("click", startGame);
+    pauseButton.addEventListener("click", togglePause);
+    overlayButton.addEventListener("click", () => {
+      if (state.playing && state.paused) {
+        togglePause();
+      } else {
+        startGame();
+      }
     });
 
     makeEnemies();
